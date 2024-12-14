@@ -6,6 +6,9 @@ local audio = require("audio")
 local narrationSound
 local narrationChannel
 
+local muteButton
+local unmuteButton
+
 local function goToPreviousScene()
     if narrationChannel then
         audio.stop(narrationChannel)
@@ -25,14 +28,16 @@ end
 function scene:create(event)
     local sceneGroup = self.view
 
+    -- Carregar a narração
     narrationSound = audio.loadStream("assets/audio/contracapa_narration.mp3")
-
     narrationChannel = audio.play(narrationSound, { loops = 0 })
 
+    -- Fundo
     local background = display.newImageRect(sceneGroup, "assets/images/background_dna.png", display.contentWidth, display.contentHeight)
     background.x = display.contentCenterX
     background.y = display.contentCenterY
 
+    -- Caixa de Título
     local titleBox = display.newRoundedRect(sceneGroup, display.contentCenterX, display.contentHeight * 0.2, display.contentWidth * 0.9, display.contentHeight * 0.12, 15)
     titleBox:setFillColor(1, 1, 1, 0.9)
 
@@ -48,6 +53,7 @@ function scene:create(event)
     })
     title:setFillColor(0.1, 0.1, 0.1)
 
+    -- Caixa de Descrição
     local descriptionBox = display.newRoundedRect(sceneGroup, display.contentCenterX, display.contentHeight * 0.45, display.contentWidth * 0.9, display.contentHeight * 0.35, 15)
     descriptionBox:setFillColor(1, 1, 1, 0.9)
 
@@ -65,6 +71,27 @@ Apresenta uma visão acessível sobre genética e mapeamento genético. Explora 
     })
     description:setFillColor(0.1, 0.1, 0.1)
 
+    -- Botões Mute/Unmute centralizados (main.lua)
+    muteButton = display.newImageRect(sceneGroup, "assets/images/audio_icon.png", 50, 50)
+    muteButton.x = display.contentWidth - 60
+    muteButton.y = 60
+    muteButton:addEventListener("tap", function()
+        muteAudio(narrationChannel)
+        muteButton.isVisible = false
+        unmuteButton.isVisible = true
+    end)
+
+    unmuteButton = display.newImageRect(sceneGroup, "assets/images/audio_mute_icon.png", 50, 50)
+    unmuteButton.x = display.contentWidth - 60
+    unmuteButton.y = 60
+    unmuteButton.isVisible = false
+    unmuteButton:addEventListener("tap", function()
+        unmuteAudio(narrationChannel)
+        muteButton.isVisible = true
+        unmuteButton.isVisible = false
+    end)
+
+    -- Caixa de Créditos
     local creditsBox = display.newRoundedRect(sceneGroup, display.contentCenterX, display.contentHeight * 0.8, display.contentWidth * 0.9, display.contentHeight * 0.15, 15)
     creditsBox:setFillColor(1, 1, 1, 0.9)
 
@@ -84,6 +111,7 @@ Computação Gráfica e Sistemas Multimídia 2024.2
     })
     credits:setFillColor(0.1, 0.1, 0.1)
 
+    -- Setas e Ícones
     local leftArrow = display.newPolygon(sceneGroup, display.contentCenterX - 100, display.contentHeight - 60, {-20, 0, 10, -10, 10, 10})
     leftArrow:setFillColor(0.4, 0.4, 0.4)
     leftArrow:addEventListener("tap", goToPreviousScene)

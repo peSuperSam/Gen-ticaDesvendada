@@ -1,10 +1,14 @@
 local composer = require("composer")
 local scene = composer.newScene()
+local popup = require("scenes.page4popup")
 
 local audio = require("audio")
 
 local narrationSound
 local narrationChannel
+local isMuted = false
+local muteButton
+local unmuteButton
 
 local function goToPreviousScene()
     if narrationChannel then
@@ -22,130 +26,18 @@ local function goToNextScene()
     composer.gotoScene("scenes.page5", { effect = "slideLeft", time = 500 })
 end
 
-local function openActivityPopup()
-    local popupGroup = display.newGroup()
-
-    local popupBackground = display.newRect(popupGroup, display.contentCenterX, display.contentCenterY, display.contentWidth * 0.8, display.contentHeight * 0.6)
-    popupBackground:setFillColor(1, 1, 1)
-    popupBackground.strokeWidth = 2
-    popupBackground:setStrokeColor(0, 0, 0)
-
-    local popupTitle = display.newText({
-        parent = popupGroup,
-        text = "Atividade: Toque na Sequência Correta",
-        x = display.contentCenterX,
-        y = popupBackground.y - popupBackground.height * 0.4 + 30,
-        width = popupBackground.width * 0.9,
-        font = native.systemFontBold,
-        fontSize = 20,
-        align = "center"
-    })
-    popupTitle:setFillColor(0, 0, 0)
-
-    local instructions = display.newText({
-        parent = popupGroup,
-        text = "Toque nos elementos na ordem correta para completar o mapeamento genético.",
-        x = display.contentCenterX,
-        y = popupTitle.y + 40,
-        width = popupBackground.width * 0.9,
-        font = native.systemFont,
-        fontSize = 16,
-        align = "center"
-    })
-    instructions:setFillColor(0, 0, 0)
-
-    local steps = { "Identificar genes", "Calcular distância", "Criar mapa" }
-    local correctSequence = { 1, 2, 3 }
-    local userSequence = {}
-    local feedbackText
-
-    local function checkSequence()
-        local isCorrect = true
-        for i = 1, #correctSequence do
-            if userSequence[i] ~= correctSequence[i] then
-                isCorrect = false
-                break
-            end
-        end
-
-        if feedbackText then feedbackText:removeSelf() end
-        if isCorrect and #userSequence == #correctSequence then
-            feedbackText = display.newText({
-                parent = popupGroup,
-                text = "Parabéns! Você completou a sequência.",
-                x = display.contentCenterX,
-                y = popupBackground.y + popupBackground.height * 0.3,
-                width = popupBackground.width * 0.8,
-                font = native.systemFontBold,
-                fontSize = 18,
-                align = "center"
-            })
-            feedbackText:setFillColor(0, 0.8, 0)
-        else
-            feedbackText = display.newText({
-                parent = popupGroup,
-                text = "Tente novamente! Toque nos passos na ordem correta.",
-                x = display.contentCenterX,
-                y = popupBackground.y + popupBackground.height * 0.3,
-                width = popupBackground.width * 0.8,
-                font = native.systemFontBold,
-                fontSize = 18,
-                align = "center"
-            })
-            feedbackText:setFillColor(0.8, 0, 0)
-        end
-    end
-
-    for i = 1, #steps do
-        local stepButton = display.newRect(popupGroup, display.contentCenterX, instructions.y + 50 + (i * 50), popupBackground.width * 0.7, 40)
-        stepButton:setFillColor(0.8, 0.8, 1)
-        stepButton.strokeWidth = 2
-        stepButton:setStrokeColor(0, 0, 0)
-
-        local stepLabel = display.newText({
-            parent = popupGroup,
-            text = steps[i],
-            x = stepButton.x,
-            y = stepButton.y,
-            font = native.systemFont,
-            fontSize = 16,
-            align = "center"
-        })
-        stepLabel:setFillColor(0, 0, 0)
-
-        stepButton:addEventListener("tap", function()
-            table.insert(userSequence, i)
-            stepButton:setFillColor(0.4, 1, 0.4) 
-            if #userSequence == #correctSequence then
-                checkSequence()
-            end
-        end)
-    end
-
-    local closeButton = display.newText({
-        parent = popupGroup,
-        text = "Fechar",
-        x = display.contentCenterX,
-        y = popupBackground.y + popupBackground.height * 0.4 - 20,
-        font = native.systemFontBold,
-        fontSize = 18
-    })
-    closeButton:setFillColor(1, 0, 0)
-
-    closeButton:addEventListener("tap", function()
-        popupGroup:removeSelf()
-    end)
-end
-
 function scene:create(event)
     local sceneGroup = self.view
 
+    -- Carregar narração
     narrationSound = audio.loadStream("assets/audio/page4_narration.mp3")
     narrationChannel = audio.play(narrationSound, { loops = 0 })
 
+    -- Fundo branco
     local whiteBackground = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     whiteBackground:setFillColor(1, 1, 1)
 
+    -- Imagens
     local dnaImage1 = display.newImageRect(sceneGroup, "assets/images/dna_image1.png", display.contentWidth * 0.4, 250)
     dnaImage1.x = dnaImage1.width * 0.5
     dnaImage1.y = 75
@@ -154,6 +46,37 @@ function scene:create(event)
     dnaImage2.anchorX = 0
     dnaImage2.x = dnaImage1.width
     dnaImage2.y = 50
+
+    -- Funções de Mute e Unmute
+    local function muteAudio()
+        if not isMuted then
+            audio.setVolume(0, { channel = narrationChannel })
+            isMuted = true
+            muteButton.isVisible = false
+            unmuteButton.isVisible = true
+        end
+    end
+
+    local function unmuteAudio()
+        if isMuted then
+            audio.setVolume(1, { channel = narrationChannel })
+            isMuted = false
+            muteButton.isVisible = true
+            unmuteButton.isVisible = false
+        end
+    end
+
+    -- Botões de Mute e Unmute
+    muteButton = display.newImageRect(sceneGroup, "assets/images/audio_icon.png", 50, 50)
+    muteButton.x = display.contentWidth - 60
+    muteButton.y = 60
+    muteButton:addEventListener("tap", muteAudio)
+
+    unmuteButton = display.newImageRect(sceneGroup, "assets/images/audio_mute_icon.png", 50, 50)
+    unmuteButton.x = muteButton.x
+    unmuteButton.y = muteButton.y
+    unmuteButton.isVisible = false
+    unmuteButton:addEventListener("tap", unmuteAudio)
 
     local title = display.newText({
         parent = sceneGroup,
@@ -251,6 +174,22 @@ O mapeamento genético utiliza a frequência de recombinação entre genes para 
     geneticContent.anchorX = 0
     geneticContent:setFillColor(0, 0, 0)
 
+    local popup = require("scenes.page4popup")
+
+    local popupButton = display.newText({
+        parent = sceneGroup,
+        text = "CLIQUE AQUI",
+        x = display.contentCenterX,
+        y = display.contentHeight - 100,
+        font = native.systemFontBold,
+        fontSize = 22
+    })
+    popupButton:setFillColor(0, 0, 1)
+    popupButton:addEventListener("tap", function()
+        popup.showPopup(sceneGroup)
+    end)
+
+    -- Botões de Navegação
     local leftArrow = display.newPolygon(sceneGroup, display.contentCenterX - 100, display.contentHeight - 40, {-20, 0, 10, -10, 10, 10})
     leftArrow:setFillColor(0.75, 0.75, 0.75)
     leftArrow:addEventListener("tap", goToPreviousScene)
@@ -262,17 +201,6 @@ O mapeamento genético utiliza a frequência de recombinação entre genes para 
     local rightArrow = display.newPolygon(sceneGroup, display.contentCenterX + 100, display.contentHeight - 40, {20, 0, -10, -10, -10, 10})
     rightArrow:setFillColor(0.75, 0.75, 0.75)
     rightArrow:addEventListener("tap", goToNextScene)
-
-    local activityButton = display.newText({
-        parent = sceneGroup,
-        text = "Atividade",
-        x = footerIcon.x,
-        y = footerIcon.y - 50,
-        font = native.systemFontBold,
-        fontSize = 22
-    })
-    activityButton:setFillColor(0, 0, 1)
-    activityButton:addEventListener("tap", openActivityPopup)
 
     local pageNumber = display.newText({
         parent = sceneGroup,

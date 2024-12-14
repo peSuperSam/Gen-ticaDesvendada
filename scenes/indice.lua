@@ -6,16 +6,21 @@ local audio = require("audio")
 local narrationSound
 local narrationChannel
 
+local muteButton
+local unmuteButton
+
 function scene:create(event)
     local sceneGroup = self.view
 
+    -- Carregar a narração
     narrationSound = audio.loadStream("assets/audio/indice_narration.mp3")
-
     narrationChannel = audio.play(narrationSound, { loops = 0 })
 
+    -- Fundo branco
     local whiteBackground = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     whiteBackground:setFillColor(1, 1, 1)
 
+    -- Header
     local headerBackground = display.newRect(sceneGroup, display.contentCenterX, 50, display.contentWidth, 100)
     headerBackground:setFillColor(0.07, 0.14, 0.34)
 
@@ -51,6 +56,7 @@ function scene:create(event)
     })
     headerTitle:setFillColor(1, 1, 1)
 
+    -- Conteúdo
     local contentY = 130
     local titles = {
         "Introdução",
@@ -101,6 +107,27 @@ function scene:create(event)
         contentY = contentY + 15
     end
 
+    -- Botões de Mute/Unmute usando funções globais
+    muteButton = display.newImageRect(sceneGroup, "assets/images/audio_icon.png", 50, 50)
+    muteButton.x = display.contentWidth - 60
+    muteButton.y = 60
+    muteButton:addEventListener("tap", function()
+        muteAudio(narrationChannel)
+        muteButton.isVisible = false
+        unmuteButton.isVisible = true
+    end)
+
+    unmuteButton = display.newImageRect(sceneGroup, "assets/images/audio_mute_icon.png", 50, 50)
+    unmuteButton.x = display.contentWidth - 60
+    unmuteButton.y = 60
+    unmuteButton.isVisible = false
+    unmuteButton:addEventListener("tap", function()
+        unmuteAudio(narrationChannel)
+        muteButton.isVisible = true
+        unmuteButton.isVisible = false
+    end)
+
+    -- Botões de Navegação
     local function goToPreviousScene()
         if narrationChannel then
             audio.stop(narrationChannel)
@@ -121,35 +148,9 @@ function scene:create(event)
     leftArrow:setFillColor(0.75, 0.75, 0.75)
     leftArrow:addEventListener("tap", goToPreviousScene)
 
-    local leftArrowText = display.newText({
-        parent = sceneGroup,
-        text = "Voltar",
-        x = leftArrow.x,
-        y = leftArrow.y + 30,
-        font = native.systemFont,
-        fontSize = 14,
-        align = "center"
-    })
-    leftArrowText:setFillColor(0, 0, 0)
-
-    local footerIcon = display.newImageRect(sceneGroup, "assets/images/icon_flower.png", 40, 40)
-    footerIcon.x = display.contentCenterX
-    footerIcon.y = display.contentHeight - 40
-
     local rightArrow = display.newPolygon(sceneGroup, display.contentCenterX + 100, display.contentHeight - 40, {20, 0, -10, -10, -10, 10})
     rightArrow:setFillColor(0.75, 0.75, 0.75)
     rightArrow:addEventListener("tap", goToNextScene)
-
-    local rightArrowText = display.newText({
-        parent = sceneGroup,
-        text = "Avançar",
-        x = rightArrow.x,
-        y = rightArrow.y + 30,
-        font = native.systemFont,
-        fontSize = 14,
-        align = "center"
-    })
-    rightArrowText:setFillColor(0, 0, 0)
 end
 
 function scene:destroy(event)

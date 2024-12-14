@@ -5,6 +5,9 @@ local audio = require("audio")
 
 local narrationSound
 local narrationChannel
+local isMuted = false
+local muteButton
+local unmuteButton
 
 local function goToPreviousScene()
     if narrationChannel then
@@ -22,117 +25,36 @@ local function goToNextScene()
     composer.gotoScene("scenes.page6", { effect = "slideLeft", time = 500 })
 end
 
-local function openActivityPopup()
-    local popupGroup = display.newGroup()
-
-    local popupBackground = display.newRect(popupGroup, display.contentCenterX, display.contentCenterY, display.contentWidth * 0.8, display.contentHeight * 0.6)
-    popupBackground:setFillColor(1, 1, 1)
-    popupBackground.strokeWidth = 2
-    popupBackground:setStrokeColor(0, 0, 0)
-
-    local popupTitle = display.newText({
-        parent = popupGroup,
-        text = "Atividade: Explore o Genoma",
-        x = display.contentCenterX,
-        y = popupBackground.y - popupBackground.height * 0.4 + 10,
-        font = native.systemFontBold,
-        fontSize = 20,
-        align = "center"
-    })
-    popupTitle:setFillColor(0, 0, 0)
-
-    local instructions = display.newText({
-        parent = popupGroup,
-        text = "Use a inclinação do dispositivo para explorar o genoma e descobrir informações sobre NGS e SNPs.",
-        x = display.contentCenterX,
-        y = popupTitle.y + 50,
-        width = popupBackground.width * 0.9,
-        font = native.systemFont,
-        fontSize = 15,
-        align = "center"
-    })
-    instructions:setFillColor(0, 0, 0)
-
-    local genomeBackground = display.newRect(popupGroup, display.contentCenterX, display.contentCenterY, popupBackground.width * 0.9, popupBackground.height * 0.6)
-    genomeBackground:setFillColor(0.9, 0.9, 0.9)
-
-    local magnifier = display.newCircle(popupGroup, display.contentCenterX, display.contentCenterY, 50)
-    magnifier:setFillColor(0, 0, 0, 0.1)
-    magnifier.strokeWidth = 2
-    magnifier:setStrokeColor(0, 0, 0)
-
-    local hiddenInfo = {
-        { x = genomeBackground.x - 60, y = genomeBackground.y - 40, text = "NGS: Sequenciamento rápido e preciso" },
-        { x = genomeBackground.x + 50, y = genomeBackground.y + 30, text = "SNPs: Mapas genéticos detalhados" }
-    }
-
-    for i = 1, #hiddenInfo do
-        local info = hiddenInfo[i]
-        local hiddenText = display.newText({
-            parent = popupGroup,
-            text = info.text,
-            x = info.x,
-            y = info.y,
-            font = native.systemFont,
-            fontSize = 16,
-            align = "center"
-        })
-        hiddenText:setFillColor(0, 0, 0)
-        hiddenText.isVisible = false -- Inicialmente oculto
-        info.displayObject = hiddenText
+local function muteAudio()
+    if narrationChannel then
+        audio.setVolume(0, { channel = narrationChannel })
+        isMuted = true
+        muteButton.isVisible = false
+        unmuteButton.isVisible = true
     end
+end
 
-    local function onAccelerometer(event)
-        magnifier.x = magnifier.x + (event.xGravity * 15)
-        magnifier.y = magnifier.y + (event.yGravity * -15)
-
-        if magnifier.x < genomeBackground.x - genomeBackground.width * 0.5 then
-            magnifier.x = genomeBackground.x - genomeBackground.width * 0.5
-        elseif magnifier.x > genomeBackground.x + genomeBackground.width * 0.5 then
-            magnifier.x = genomeBackground.x + genomeBackground.width * 0.5
-        end
-
-        if magnifier.y < genomeBackground.y - genomeBackground.height * 0.5 then
-            magnifier.y = genomeBackground.y - genomeBackground.height * 0.5
-        elseif magnifier.y > genomeBackground.y + genomeBackground.height * 0.5 then
-            magnifier.y = genomeBackground.y + genomeBackground.height * 0.5
-        end
-
-        for i = 1, #hiddenInfo do
-            local info = hiddenInfo[i]
-            if math.abs(magnifier.x - info.x) < 50 and math.abs(magnifier.y - info.y) < 50 then
-                info.displayObject.isVisible = true
-            end
-        end
+local function unmuteAudio()
+    if narrationChannel then
+        audio.setVolume(1, { channel = narrationChannel })
+        isMuted = false
+        muteButton.isVisible = true
+        unmuteButton.isVisible = false
     end
-
-    Runtime:addEventListener("accelerometer", onAccelerometer)
-
-    local closeButton = display.newText({
-        parent = popupGroup,
-        text = "Fechar",
-        x = display.contentCenterX,
-        y = popupBackground.y + popupBackground.height * 0.4 - 20,
-        font = native.systemFontBold,
-        fontSize = 18
-    })
-    closeButton:setFillColor(1, 0, 0)
-
-    closeButton:addEventListener("tap", function()
-        Runtime:removeEventListener("accelerometer", onAccelerometer)
-        popupGroup:removeSelf()
-    end)
 end
 
 function scene:create(event)
     local sceneGroup = self.view
 
+    -- Narração
     narrationSound = audio.loadStream("assets/audio/page5_narration.mp3")
     narrationChannel = audio.play(narrationSound, { loops = 0 })
 
+    -- Fundo
     local whiteBackground = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     whiteBackground:setFillColor(1, 1, 1)
 
+    -- Imagens
     local dnaImage1 = display.newImageRect(sceneGroup, "assets/images/dna_image1.png", display.contentWidth * 0.4, 250)
     dnaImage1.x = dnaImage1.width * 0.5
     dnaImage1.y = 75
@@ -142,6 +64,7 @@ function scene:create(event)
     dnaImage2.x = dnaImage1.width
     dnaImage2.y = 50
 
+    -- Título
     local title = display.newText({
         parent = sceneGroup,
         text = "Principais Métodos e Tecnologias para Mapear o DNA",
@@ -155,6 +78,7 @@ function scene:create(event)
     title.anchorX = 0
     title:setFillColor(0, 0, 0)
 
+    -- Conteúdo
     local content = display.newText({
         parent = sceneGroup,
         text = [[
@@ -170,6 +94,7 @@ O mapeamento de DNA envolve diversas técnicas que ajudam a identificar a locali
     content.anchorX = 0
     content:setFillColor(0, 0, 0)
 
+    -- NGS (Sequenciamento de Nova Geração)
     local ngsTitle = display.newText({
         parent = sceneGroup,
         text = "• Sequenciamento de Nova Geração (NGS)",
@@ -198,6 +123,7 @@ O sequenciamento de nova geração (NGS) é uma tecnologia avançada que permite
     ngsContent.anchorX = 0
     ngsContent:setFillColor(0, 0, 0)
 
+    -- SNPs (Polimorfismos de Nucleotídeo Único)
     local snpTitle = display.newText({
         parent = sceneGroup,
         text = "• Mapeamento de Polimorfismos de Nucleotídeo Único (SNPs)",
@@ -226,6 +152,7 @@ Outro método importante é o mapeamento de polimorfismos de nucleotídeo único
     snpContent.anchorX = 0
     snpContent:setFillColor(0, 0, 0)
 
+    -- Botões de Navegação
     local leftArrow = display.newPolygon(sceneGroup, display.contentCenterX - 100, display.contentHeight - 40, {-20, 0, 10, -10, 10, 10})
     leftArrow:setFillColor(0.75, 0.75, 0.75)
     leftArrow:addEventListener("tap", goToPreviousScene)
@@ -238,17 +165,34 @@ Outro método importante é o mapeamento de polimorfismos de nucleotídeo único
     rightArrow:setFillColor(0.75, 0.75, 0.75)
     rightArrow:addEventListener("tap", goToNextScene)
 
-    local activityButton = display.newText({
+    local popup = require("scenes.page5popup")
+
+    local popupButton = display.newText({
         parent = sceneGroup,
-        text = "Atividade",
-        x = footerIcon.x,
-        y = footerIcon.y - 50,
+        text = "CLIQUE AQUI",
+        x = display.contentCenterX,
+        y = display.contentHeight - 100,
         font = native.systemFontBold,
         fontSize = 22
     })
-    activityButton:setFillColor(0, 0, 1)
-    activityButton:addEventListener("tap", openActivityPopup)
+    popupButton:setFillColor(0, 0, 1)
+    popupButton:addEventListener("tap", function()
+        popup.showPopup(sceneGroup)
+    end)
 
+    -- Botão de Mute/Unmute
+    muteButton = display.newImageRect(sceneGroup, "assets/images/audio_icon.png", 50, 50)
+    muteButton.x = display.contentWidth - 60
+    muteButton.y = 60
+    muteButton:addEventListener("tap", muteAudio)
+
+    unmuteButton = display.newImageRect(sceneGroup, "assets/images/audio_mute_icon.png", 50, 50)
+    unmuteButton.x = muteButton.x
+    unmuteButton.y = muteButton.y
+    unmuteButton.isVisible = false
+    unmuteButton:addEventListener("tap", unmuteAudio)
+
+    -- Número da Página
     local pageNumber = display.newText({
         parent = sceneGroup,
         text = "5",

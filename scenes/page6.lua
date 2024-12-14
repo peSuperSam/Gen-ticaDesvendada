@@ -5,6 +5,9 @@ local audio = require("audio")
 
 local narrationSound
 local narrationChannel
+local isMuted = false
+local muteButton
+local unmuteButton
 
 local function goToPreviousScene()
     if narrationChannel then
@@ -22,156 +25,43 @@ local function goToNextScene()
     composer.gotoScene("scenes.page7", { effect = "slideLeft", time = 500 })
 end
 
+-- Lógica de Mutar e Desmutar a Narração
+local function muteAudio()
+    if narrationChannel then
+        audio.setVolume(0, { channel = narrationChannel })
+        isMuted = true
+        muteButton.isVisible = false
+        unmuteButton.isVisible = true
+    end
+end
+
+local function unmuteAudio()
+    if narrationChannel then
+        audio.setVolume(1, { channel = narrationChannel })
+        isMuted = false
+        muteButton.isVisible = true
+        unmuteButton.isVisible = false
+    end
+end
+
+-- Função para Abrir o Pop-Up da Atividade
 local function openActivityPopup()
-    local popupGroup = display.newGroup()
-
-    local popupBackground = display.newRect(popupGroup, display.contentCenterX, display.contentCenterY, display.contentWidth * 0.8, display.contentHeight * 0.6)
-    popupBackground:setFillColor(1, 1, 1)
-    popupBackground.strokeWidth = 2
-    popupBackground:setStrokeColor(0, 0, 0)
-
-    local popupTitle = display.newText({
-        parent = popupGroup,
-        text = "Atividade: Monte a Cadeia de DNA",
-        x = display.contentCenterX,
-        y = display.contentCenterY - popupBackground.height * 0.4 + 30,
-        font = native.systemFontBold,
-        fontSize = 20,
-        align = "center"
-    })
-    popupTitle:setFillColor(0, 0, 0)
-
-    local dnaImage = display.newImageRect(popupGroup, "assets/images/dnaatividade.png", 150, 150)
-    dnaImage.x = display.contentCenterX
-    dnaImage.y = display.contentCenterY - 30
-
-    local instructions = display.newText({
-        parent = popupGroup,
-        text = "Clique nas bases para formar a cadeia correta de DNA.",
-        x = display.contentCenterX,
-        y = popupTitle.y + 80,
-        width = popupBackground.width * 0.9,
-        font = native.systemFont,
-        fontSize = 16,
-        align = "center"
-    })
-    instructions:setFillColor(0, 0, 0)
-
-    local correctSequence = {"A", "T", "C", "G"}
-    local userSequence = {}
-    local baseButtons = {}
-    local feedbackText
-
-    local function playFeedbackSound(isCorrect)
-        local soundFile = isCorrect and "assets/sounds/correct.mp3" or "assets/sounds/wrong.mp3"
-        if soundFile then
-            audio.play(audio.loadSound(soundFile))
-        end
-    end
-
-    local function checkSequence()
-        local isCorrect = true
-        for i = 1, #correctSequence do
-            if correctSequence[i] ~= userSequence[i] then
-                isCorrect = false
-                break
-            end
-        end
-
-        if isCorrect and #userSequence == #correctSequence then
-            feedbackText.text = "Parabéns! Você montou a sequência correta!"
-            feedbackText:setFillColor(0, 0.6, 0)
-            playFeedbackSound(true)
-
-            transition.to(feedbackText, { xScale = 1.2, yScale = 1.2, time = 300, transition = easing.continuousLoop, onComplete = function()
-                transition.to(feedbackText, { xScale = 1, yScale = 1, time = 300 })
-            end })
-        elseif #userSequence < #correctSequence then
-            feedbackText.text = "Continue selecionando as bases!"
-            feedbackText:setFillColor(0, 0, 0)
-        else
-            feedbackText.text = "Sequência incorreta. Tente novamente."
-            feedbackText:setFillColor(1, 0, 0)
-            playFeedbackSound(false)
-        end
-    end
-
-    local function onBaseTap(event)
-        if #userSequence < #correctSequence then
-            table.insert(userSequence, event.target.text)
-            event.target:setFillColor(0.5, 0.5, 0.5) 
-            event.target:removeEventListener("tap", onBaseTap) 
-            checkSequence()
-        end
-    end
-
-    for i = 1, #correctSequence do
-        baseButtons[i] = display.newText({
-            parent = popupGroup,
-            text = correctSequence[i],
-            x = display.contentCenterX - 60 + (i * 40),
-            y = dnaImage.y + 100,
-            font = native.systemFontBold,
-            fontSize = 18
-        })
-        baseButtons[i]:setFillColor(math.random(), math.random(), math.random())
-        baseButtons[i]:addEventListener("tap", onBaseTap)
-    end
-
-    feedbackText = display.newText({
-        parent = popupGroup,
-        text = "Selecione as bases na ordem correta.",
-        x = display.contentCenterX,
-        y = dnaImage.y + 160,
-        width = popupBackground.width * 0.9,
-        font = native.systemFont,
-        fontSize = 14,
-        align = "center"
-    })
-    feedbackText:setFillColor(0, 0, 0)
-
-    local restartButton = display.newText({
-        parent = popupGroup,
-        text = "Reiniciar",
-        x = display.contentCenterX - 60,
-        y = feedbackText.y + 50,
-        font = native.systemFontBold,
-        fontSize = 18
-    })
-    restartButton:setFillColor(0, 0, 1)
-    restartButton:addEventListener("tap", function()
-        userSequence = {}
-        feedbackText.text = "Selecione as bases na ordem correta."
-        feedbackText:setFillColor(0, 0, 0)
-        for i = 1, #baseButtons do
-            baseButtons[i]:setFillColor(math.random(), math.random(), math.random())
-            baseButtons[i]:addEventListener("tap", onBaseTap)
-        end
-    end)
-
-    local closeButton = display.newText({
-        parent = popupGroup,
-        text = "Fechar",
-        x = display.contentCenterX + 60,
-        y = feedbackText.y + 50,
-        font = native.systemFontBold,
-        fontSize = 18
-    })
-    closeButton:setFillColor(1, 0, 0)
-    closeButton:addEventListener("tap", function()
-        popupGroup:removeSelf()
-    end)
+    local activityPopup = require("scenes.page6popup")
+    activityPopup.showPopup()
 end
 
 function scene:create(event)
     local sceneGroup = self.view
 
+    -- Narração
     narrationSound = audio.loadStream("assets/audio/page6_narration.mp3")
     narrationChannel = audio.play(narrationSound, { loops = 0 })
 
+    -- Fundo
     local whiteBackground = display.newRect(sceneGroup, display.contentCenterX, display.contentCenterY, display.contentWidth, display.contentHeight)
     whiteBackground:setFillColor(1, 1, 1)
 
+    -- Imagens
     local dnaImage1 = display.newImageRect(sceneGroup, "assets/images/dna_image1.png", display.contentWidth * 0.4, 250)
     dnaImage1.x = dnaImage1.width * 0.5
     dnaImage1.y = 75
@@ -181,6 +71,7 @@ function scene:create(event)
     dnaImage2.x = dnaImage1.width
     dnaImage2.y = 50
 
+    -- Título
     local title = display.newText({
         parent = sceneGroup,
         text = "Mapeamento Genético, Desafios e Estudos sobre Faraós",
@@ -194,6 +85,7 @@ function scene:create(event)
     title.anchorX = 0
     title:setFillColor(0, 0, 0)
 
+    -- Conteúdo
     local content = display.newText({
         parent = sceneGroup,
         text = [[
@@ -209,6 +101,7 @@ O mapeamento genético é uma técnica essencial na biologia moderna, permitindo
     content.anchorX = 0
     content:setFillColor(0, 0, 0)
 
+    -- Desafios do Mapeamento Genético
     local faraoTitle = display.newText({
         parent = sceneGroup,
         text = "Desafios do Mapeamento Genético",
@@ -237,6 +130,7 @@ Contudo, o mapeamento genético enfrenta desafios, como a degradação do DNA em
     faraoContent.anchorX = 0
     faraoContent:setFillColor(0, 0, 0)
 
+    -- Conservação de Espécies
     local conservationTitle = display.newText({
         parent = sceneGroup,
         text = "Mapeamento Genético em Conservação de Espécies",
@@ -265,48 +159,63 @@ O mapeamento genético é crucial para a conservação de espécies ameaçadas, 
     conservationContent.anchorX = 0
     conservationContent:setFillColor(0, 0, 0)
 
-     local leftArrow = display.newPolygon(sceneGroup, display.contentCenterX - 100, display.contentHeight - 40, {-20, 0, 10, -10, 10, 10})
-     leftArrow:setFillColor(0.75, 0.75, 0.75)
-     leftArrow:addEventListener("tap", goToPreviousScene)
- 
-     local footerIcon = display.newImageRect(sceneGroup, "assets/images/icon_flower.png", 40, 40)
-     footerIcon.x = display.contentCenterX
-     footerIcon.y = display.contentHeight - 40
- 
-     local rightArrow = display.newPolygon(sceneGroup, display.contentCenterX + 100, display.contentHeight - 40, {20, 0, -10, -10, -10, 10})
-     rightArrow:setFillColor(0.75, 0.75, 0.75)
-     rightArrow:addEventListener("tap", goToNextScene)
- 
-     local activityButton = display.newText({
-         parent = sceneGroup,
-         text = "Atividade",
-         x = footerIcon.x,
-         y = footerIcon.y - 50,
-         font = native.systemFontBold,
-         fontSize = 22
-     })
-     activityButton:setFillColor(0, 0, 1)
-     activityButton:addEventListener("tap", openActivityPopup)
- 
-     local pageNumber = display.newText({
-         parent = sceneGroup,
-         text = "6",
-         x = display.contentWidth - 30,
-         y = display.contentHeight - 30,
-         font = native.systemFontBold,
-         fontSize = 50
-     })
-     pageNumber:setFillColor(0, 0, 0)
- end
- 
- function scene:destroy(event)
-     if narrationSound then
-         audio.dispose(narrationSound)
-         narrationSound = nil
-     end
- end
- 
- scene:addEventListener("create", scene)
- scene:addEventListener("destroy", scene)
- 
- return scene
+    -- Botões de Navegação
+    local leftArrow = display.newPolygon(sceneGroup, display.contentCenterX - 100, display.contentHeight - 40, {-20, 0, 10, -10, 10, 10})
+    leftArrow:setFillColor(0.75, 0.75, 0.75)
+    leftArrow:addEventListener("tap", goToPreviousScene)
+
+    local footerIcon = display.newImageRect(sceneGroup, "assets/images/icon_flower.png", 40, 40)
+    footerIcon.x = display.contentCenterX
+    footerIcon.y = display.contentHeight - 40
+
+    local rightArrow = display.newPolygon(sceneGroup, display.contentCenterX + 100, display.contentHeight - 40, {20, 0, -10, -10, -10, 10})
+    rightArrow:setFillColor(0.75, 0.75, 0.75)
+    rightArrow:addEventListener("tap", goToNextScene)
+
+    -- Botão de Atividade
+    local activityButton = display.newText({
+        parent = sceneGroup,
+        text = "CLIQUE AQUI",
+        x = display.contentCenterX,
+        y = footerIcon.y - 50,
+        font = native.systemFontBold,
+        fontSize = 22
+    })
+    activityButton:setFillColor(0, 0, 1)
+    activityButton:addEventListener("tap", openActivityPopup)
+
+    -- Botão de Mute/Unmute
+    muteButton = display.newImageRect(sceneGroup, "assets/images/audio_icon.png", 50, 50)
+    muteButton.x = display.contentWidth - 60
+    muteButton.y = 60
+    muteButton:addEventListener("tap", muteAudio)
+
+    unmuteButton = display.newImageRect(sceneGroup, "assets/images/audio_mute_icon.png", 50, 50)
+    unmuteButton.x = muteButton.x
+    unmuteButton.y = muteButton.y
+    unmuteButton.isVisible = false
+    unmuteButton:addEventListener("tap", unmuteAudio)
+
+    -- Número da Página
+    local pageNumber = display.newText({
+        parent = sceneGroup,
+        text = "6",
+        x = display.contentWidth - 30,
+        y = display.contentHeight - 30,
+        font = native.systemFontBold,
+        fontSize = 50
+    })
+    pageNumber:setFillColor(0, 0, 0)
+end
+
+function scene:destroy(event)
+    if narrationSound then
+        audio.dispose(narrationSound)
+        narrationSound = nil
+    end
+end
+
+scene:addEventListener("create", scene)
+scene:addEventListener("destroy", scene)
+
+return scene
